@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" >
+
+<title>学习日志3 Django Ninja文件上传功能 | Mioper&#39;s Blog</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+
+<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+<link rel="shortcut icon" href="https://OKooepoper.github.io/favicon.ico?v=1758344579347">
+<link rel="stylesheet" href="https://OKooepoper.github.io/styles/main.css">
+
+
+
+<link rel="stylesheet" href="https://unpkg.com/aos@next/dist/aos.css" />
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+
+
+    <meta name="description" content="Django Ninja文件上传功能完整配置指南
+1. 模型配置（Model）
+在模型中添加FileField字段来处理文件上传：
+&lt;!-- more --&gt;
+
+
+
+from django.db import models
+fr..." />
+    <meta name="keywords" content="编程,技术" />
+  </head>
+  <body>
+    <div id="app" class="main">
+
+      <div class="sidebar" :class="{ 'full-height': menuVisible }">
+  <div class="top-container" data-aos="fade-right">
+    <div class="top-header-container">
+      <a class="site-title-container" href="https://OKooepoper.github.io">
+        <img src="https://OKooepoper.github.io/images/avatar.png?v=1758344579347" class="site-logo">
+        <h1 class="site-title">Mioper&#39;s Blog</h1>
+      </a>
+      <div class="menu-btn" @click="menuVisible = !menuVisible">
+        <div class="line"></div>
+      </div>
+    </div>
+    <div>
+      
+        
+          <a href="/" class="site-nav">
+            最新文章
+          </a>
+        
+      
+        
+          <a href="/archives" class="site-nav">
+            归档
+          </a>
+        
+      
+        
+          <a href="/tags" class="site-nav">
+            分类
+          </a>
+        
+      
+        
+          <a href="/post/about" class="site-nav">
+            关于我
+          </a>
+        
+      
+    </div>
+  </div>
+  <div class="bottom-container" data-aos="flip-up" data-aos-offset="0">
+    <div class="social-container">
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    </div>
+    <div class="site-description">
+      温故而知新，一个思考与总结的地方
+    </div>
+    <div class="site-footer">
+      Powered by <a href="https://github.com/getgridea/gridea" target="_blank">Gridea</a> | <a class="rss" href="https://OKooepoper.github.io/atom.xml" target="_blank">RSS</a>
+    </div>
+  </div>
+</div>
+
+
+      <div class="main-container">
+        <div class="content-container" data-aos="fade-up">
+          <div class="post-detail">
+            <h2 class="post-title">学习日志3 Django Ninja文件上传功能</h2>
+            <div class="post-date">2025-09-20</div>
+            
+              <div class="feature-container" style="background-image: url('https://img-blog.csdnimg.cn/direct/517ea23066b846d9bd19a42bd9071edd.png')">
+              </div>
+            
+            <div class="post-content" v-pre>
+              <h2 id="django-ninja文件上传功能完整配置指南">Django Ninja文件上传功能完整配置指南</h2>
+<h3 id="1-模型配置model">1. 模型配置（Model）</h3>
+<p>在模型中添加FileField字段来处理文件上传：</p>
+<pre><code class="language-python">&lt;!-- more --&gt;
+
+
+
+from django.db import models
+from django.utils import timezone
+
+class Article(models.Model):
+    # 其他字段...
+    
+    # 附件字段，允许上传文件
+    attachment = models.FileField(
+        upload_to='upload_files/',  # 上传文件存储路径
+        blank=True, 
+        null=True, 
+        verbose_name=&quot;附件&quot;
+    )
+</code></pre>
+<p><strong>关键点：</strong></p>
+<ul>
+<li>使用<code>FileField</code>字段处理文件上传</li>
+<li><code>upload_to</code>参数指定文件存储的相对路径</li>
+<li><code>blank=True, null=True</code>允许字段为空（可选附件）</li>
+</ul>
+<h3 id="2-django设置配置settings">2. Django设置配置（Settings）</h3>
+<p>在settings.py中需要添加特定配置：</p>
+<pre><code class="language-python"># 必需的中间件
+MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
+    'ninja.compatibility.files.fix_request_files_middleware',  # 处理文件上传的关键中间件
+    'django.middleware.security.SecurityMiddleware',
+    # ... 其他中间件
+]
+
+# 媒体文件配置
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+</code></pre>
+<p><strong>关键点：</strong></p>
+<ul>
+<li><code>ninja.compatibility.files.fix_request_files_middleware</code>是处理文件上传的核心中间件，特别是对于PUT/PATCH请求</li>
+<li><a href="file://D:%5CTrea%E9%A1%B9%E7%9B%AE%5Cninja%E7%BB%83%E4%B9%A0%5Cmyblog%5Cmyblog%5Csettings.py#L156-L156">MEDIA_URL</a>和<a href="file://D:%5CTrea%E9%A1%B9%E7%9B%AE%5Cninja%E7%BB%83%E4%B9%A0%5Cmyblog%5Cmyblog%5Csettings.py#L157-L157">MEDIA_ROOT</a>定义了上传文件的访问URL和物理存储路径</li>
+</ul>
+<h3 id="3-url配置">3. URL配置</h3>
+<p>在主urls.py中需要配置媒体文件的访问路径：</p>
+<pre><code class="language-python">from django.conf import settings
+from django.conf.urls.static import static
+
+urlpatterns = [
+    # ... 其他URL配置
+]
+
+# 开发环境下提供媒体文件访问支持
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+</code></pre>
+<h3 id="4-api实现">4. API实现</h3>
+<p>在API中正确处理文件上传参数：</p>
+<pre><code class="language-python">from ninja import NinjaAPI, File
+from ninja.files import UploadedFile
+
+@api.post('/create_article', response=ArticleOut)
+def create_article(request, title: str, content: str, attachment: UploadedFile = File(None)):
+    &quot;&quot;&quot;创建文章&quot;&quot;&quot;
+    article = Article.objects.create(
+        title=title, 
+        content=content, 
+        attachment=attachment
+    )
+    return article
+
+@api.put('/update_article/{id}', response=ArticleOut)
+def update_article(request, id: int, title: str, content: str, attachment: UploadedFile = File(None)):
+    &quot;&quot;&quot;更新文章&quot;&quot;&quot;
+    article = get_object_or_404(Article, id=id)
+    article.title = title
+    article.content = content
+    if attachment:
+        article.attachment = attachment
+    article.save()
+    return article
+</code></pre>
+<p><strong>关键点：</strong></p>
+<ul>
+<li>文件参数必须使用<code>UploadedFile = File(None)</code>格式声明</li>
+<li>不要将文件字段包含在Schema中，而是作为独立参数处理</li>
+<li>在PUT请求中处理文件需要前面提到的特殊中间件</li>
+</ul>
+<h3 id="5-工作流程说明">5. 工作流程说明</h3>
+<ol>
+<li>
+<p><strong>文件上传过程：</strong></p>
+<ul>
+<li>用户通过POST/PUT请求上传文件</li>
+<li>Django通过中间件处理文件数据</li>
+<li>文件保存到<code>MEDIA_ROOT/upload_to</code>指定的目录</li>
+<li>数据库中保存文件的相对路径</li>
+</ul>
+</li>
+<li>
+<p><strong>文件访问过程：</strong></p>
+<ul>
+<li>通过<a href="file://D:%5CTrea%E9%A1%B9%E7%9B%AE%5Cninja%E7%BB%83%E4%B9%A0%5Cmyblog%5Cmyblog%5Csettings.py#L156-L156">MEDIA_URL</a>+数据库中保存的路径访问文件</li>
+<li>开发环境中Django直接提供文件服务</li>
+<li>生产环境中通常由Web服务器（如Nginx）提供文件服务</li>
+</ul>
+</li>
+</ol>
+<h3 id="6-注意事项">6. 注意事项</h3>
+<ol>
+<li>
+<p><strong>安全性：</strong></p>
+<ul>
+<li>验证上传文件类型和大小</li>
+<li>避免执行上传的文件</li>
+<li>对上传文件名进行处理，防止路径遍历攻击</li>
+</ul>
+</li>
+<li>
+<p><strong>性能优化：</strong></p>
+<ul>
+<li>生产环境中使用CDN存储静态文件</li>
+<li>限制上传文件大小</li>
+<li>使用异步处理大文件上传</li>
+</ul>
+</li>
+<li>
+<p><strong>错误处理：</strong></p>
+<ul>
+<li>处理文件上传失败的情况</li>
+<li>提供友好的错误提示</li>
+</ul>
+</li>
+</ol>
+<p>通过以上配置，Django Ninja可以正确处理文件上传功能，包括创建和更新操作中的文件处理。</p>
+
+            </div>
+            
+              <div class="tag-container">
+                
+                  <a href="https://OKooepoper.github.io/tag/68DoE0HHbu/" class="tag">
+                    编程
+                  </a>
+                
+                  <a href="https://OKooepoper.github.io/tag/AZIIpy78HS/" class="tag">
+                    技术
+                  </a>
+                
+              </div>
+            
+            
+              <div class="next-post">
+                <div class="next">下一篇</div>
+                <a href="https://OKooepoper.github.io/post/xue-xi-ri-zhi-2-django-de-mvt-mo-shi/">
+                  <h3 class="post-title">
+                    学习日志2 Django的MVT模式
+                  </h3>
+                </a>
+              </div>
+            
+
+            
+
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@next/dist/aos.js"></script>
+<script type="application/javascript">
+
+AOS.init();
+
+var app = new Vue({
+  el: '#app',
+  data: {
+    menuVisible: false,
+  },
+})
+
+</script>
+
+
+  <script src="//cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.5.1/build/highlight.min.js"></script>
+  <script>
+    hljs.initHighlightingOnLoad()
+  </script>
+
+
+
+
+
+  </body>
+</html>

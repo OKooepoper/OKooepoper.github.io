@@ -1,0 +1,375 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+    <id>https://OKooepoper.github.io</id>
+    <title>Mioper&apos;s Blog</title>
+    <updated>2025-09-20T05:03:03.220Z</updated>
+    <generator>https://github.com/jpmonette/feed</generator>
+    <link rel="alternate" href="https://OKooepoper.github.io"/>
+    <link rel="self" href="https://OKooepoper.github.io/atom.xml"/>
+    <subtitle>温故而知新，一个思考与总结的地方</subtitle>
+    <logo>https://OKooepoper.github.io/images/avatar.png</logo>
+    <icon>https://OKooepoper.github.io/favicon.ico</icon>
+    <rights>All rights reserved 2025, Mioper&apos;s Blog</rights>
+    <entry>
+        <title type="html"><![CDATA[学习日志3 Django Ninja文件上传功能]]></title>
+        <id>https://OKooepoper.github.io/post/xue-xi-ri-zhi-3-django-ninja-wen-jian-shang-chuan-gong-neng/</id>
+        <link href="https://OKooepoper.github.io/post/xue-xi-ri-zhi-3-django-ninja-wen-jian-shang-chuan-gong-neng/">
+        </link>
+        <updated>2025-09-20T04:58:57.000Z</updated>
+        <summary type="html"><![CDATA[<h2 id="django-ninja文件上传功能完整配置指南">Django Ninja文件上传功能完整配置指南</h2>
+<h3 id="1-模型配置model">1. 模型配置（Model）</h3>
+<p>在模型中添加FileField字段来处理文件上传：</p>
+<pre><code class="language-python"></code></pre>
+]]></summary>
+        <content type="html"><![CDATA[<h2 id="django-ninja文件上传功能完整配置指南">Django Ninja文件上传功能完整配置指南</h2>
+<h3 id="1-模型配置model">1. 模型配置（Model）</h3>
+<p>在模型中添加FileField字段来处理文件上传：</p>
+<pre><code class="language-python">&lt;!-- more --&gt;
+
+
+
+from django.db import models
+from django.utils import timezone
+
+class Article(models.Model):
+    # 其他字段...
+    
+    # 附件字段，允许上传文件
+    attachment = models.FileField(
+        upload_to='upload_files/',  # 上传文件存储路径
+        blank=True, 
+        null=True, 
+        verbose_name=&quot;附件&quot;
+    )
+</code></pre>
+<p><strong>关键点：</strong></p>
+<ul>
+<li>使用<code>FileField</code>字段处理文件上传</li>
+<li><code>upload_to</code>参数指定文件存储的相对路径</li>
+<li><code>blank=True, null=True</code>允许字段为空（可选附件）</li>
+</ul>
+<h3 id="2-django设置配置settings">2. Django设置配置（Settings）</h3>
+<p>在settings.py中需要添加特定配置：</p>
+<pre><code class="language-python"># 必需的中间件
+MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
+    'ninja.compatibility.files.fix_request_files_middleware',  # 处理文件上传的关键中间件
+    'django.middleware.security.SecurityMiddleware',
+    # ... 其他中间件
+]
+
+# 媒体文件配置
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+</code></pre>
+<p><strong>关键点：</strong></p>
+<ul>
+<li><code>ninja.compatibility.files.fix_request_files_middleware</code>是处理文件上传的核心中间件，特别是对于PUT/PATCH请求</li>
+<li><a href="file://D:%5CTrea%E9%A1%B9%E7%9B%AE%5Cninja%E7%BB%83%E4%B9%A0%5Cmyblog%5Cmyblog%5Csettings.py#L156-L156">MEDIA_URL</a>和<a href="file://D:%5CTrea%E9%A1%B9%E7%9B%AE%5Cninja%E7%BB%83%E4%B9%A0%5Cmyblog%5Cmyblog%5Csettings.py#L157-L157">MEDIA_ROOT</a>定义了上传文件的访问URL和物理存储路径</li>
+</ul>
+<h3 id="3-url配置">3. URL配置</h3>
+<p>在主urls.py中需要配置媒体文件的访问路径：</p>
+<pre><code class="language-python">from django.conf import settings
+from django.conf.urls.static import static
+
+urlpatterns = [
+    # ... 其他URL配置
+]
+
+# 开发环境下提供媒体文件访问支持
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+</code></pre>
+<h3 id="4-api实现">4. API实现</h3>
+<p>在API中正确处理文件上传参数：</p>
+<pre><code class="language-python">from ninja import NinjaAPI, File
+from ninja.files import UploadedFile
+
+@api.post('/create_article', response=ArticleOut)
+def create_article(request, title: str, content: str, attachment: UploadedFile = File(None)):
+    &quot;&quot;&quot;创建文章&quot;&quot;&quot;
+    article = Article.objects.create(
+        title=title, 
+        content=content, 
+        attachment=attachment
+    )
+    return article
+
+@api.put('/update_article/{id}', response=ArticleOut)
+def update_article(request, id: int, title: str, content: str, attachment: UploadedFile = File(None)):
+    &quot;&quot;&quot;更新文章&quot;&quot;&quot;
+    article = get_object_or_404(Article, id=id)
+    article.title = title
+    article.content = content
+    if attachment:
+        article.attachment = attachment
+    article.save()
+    return article
+</code></pre>
+<p><strong>关键点：</strong></p>
+<ul>
+<li>文件参数必须使用<code>UploadedFile = File(None)</code>格式声明</li>
+<li>不要将文件字段包含在Schema中，而是作为独立参数处理</li>
+<li>在PUT请求中处理文件需要前面提到的特殊中间件</li>
+</ul>
+<h3 id="5-工作流程说明">5. 工作流程说明</h3>
+<ol>
+<li>
+<p><strong>文件上传过程：</strong></p>
+<ul>
+<li>用户通过POST/PUT请求上传文件</li>
+<li>Django通过中间件处理文件数据</li>
+<li>文件保存到<code>MEDIA_ROOT/upload_to</code>指定的目录</li>
+<li>数据库中保存文件的相对路径</li>
+</ul>
+</li>
+<li>
+<p><strong>文件访问过程：</strong></p>
+<ul>
+<li>通过<a href="file://D:%5CTrea%E9%A1%B9%E7%9B%AE%5Cninja%E7%BB%83%E4%B9%A0%5Cmyblog%5Cmyblog%5Csettings.py#L156-L156">MEDIA_URL</a>+数据库中保存的路径访问文件</li>
+<li>开发环境中Django直接提供文件服务</li>
+<li>生产环境中通常由Web服务器（如Nginx）提供文件服务</li>
+</ul>
+</li>
+</ol>
+<h3 id="6-注意事项">6. 注意事项</h3>
+<ol>
+<li>
+<p><strong>安全性：</strong></p>
+<ul>
+<li>验证上传文件类型和大小</li>
+<li>避免执行上传的文件</li>
+<li>对上传文件名进行处理，防止路径遍历攻击</li>
+</ul>
+</li>
+<li>
+<p><strong>性能优化：</strong></p>
+<ul>
+<li>生产环境中使用CDN存储静态文件</li>
+<li>限制上传文件大小</li>
+<li>使用异步处理大文件上传</li>
+</ul>
+</li>
+<li>
+<p><strong>错误处理：</strong></p>
+<ul>
+<li>处理文件上传失败的情况</li>
+<li>提供友好的错误提示</li>
+</ul>
+</li>
+</ol>
+<p>通过以上配置，Django Ninja可以正确处理文件上传功能，包括创建和更新操作中的文件处理。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[学习日志2 Django的MVT模式]]></title>
+        <id>https://OKooepoper.github.io/post/xue-xi-ri-zhi-2-django-de-mvt-mo-shi/</id>
+        <link href="https://OKooepoper.github.io/post/xue-xi-ri-zhi-2-django-de-mvt-mo-shi/">
+        </link>
+        <updated>2025-08-07T15:40:39.000Z</updated>
+        <summary type="html"><![CDATA[<h2 id="一-mvt模式概述">一、MVT模式概述</h2>
+<p>Django的MVT（Model - View - Template）模式是一种软件设计模式，它类似于传统的MVC（Model - View - Controller）模式，主要用于构建Web应用。这种模式的核心思想是将数据处理、业务逻辑和用户界面分离，使得代码结构更加清晰，提高了代码的可维护性和可扩展性。</p>
+]]></summary>
+        <content type="html"><![CDATA[<h2 id="一-mvt模式概述">一、MVT模式概述</h2>
+<p>Django的MVT（Model - View - Template）模式是一种软件设计模式，它类似于传统的MVC（Model - View - Controller）模式，主要用于构建Web应用。这种模式的核心思想是将数据处理、业务逻辑和用户界面分离，使得代码结构更加清晰，提高了代码的可维护性和可扩展性。</p>
+<!-- more -->
+<h3 id="1-各组件简介">1. 各组件简介</h3>
+<ul>
+<li><strong>Model（模型）</strong>
+<ul>
+<li>负责与数据库交互，定义数据结构和业务逻辑。在Django中，模型通常是一个Python类，继承自 <code>django.db.models.Model</code> 类。通过模型，我们可以方便地进行数据库的增删改查操作，而无需编写复杂的SQL语句。</li>
+</ul>
+</li>
+<li><strong>View（视图）</strong>
+<ul>
+<li>处理用户的请求，从模型中获取数据，并将数据传递给模板进行渲染。视图是一个Python函数或类，它接收一个HttpRequest对象作为参数，并返回一个HttpResponse对象。</li>
+</ul>
+</li>
+<li><strong>Template（模板）</strong>
+<ul>
+<li>负责呈现数据给用户，通常是HTML文件。模板中可以包含变量、标签和过滤器，用于动态生成HTML内容。</li>
+</ul>
+</li>
+</ul>
+<h2 id="二-mvt模式的工作流程">二、MVT模式的工作流程</h2>
+<p>当用户访问Django应用时，整个MVT模式的工作流程如下：</p>
+<ol>
+<li>用户通过浏览器发送请求到Django应用的URL。</li>
+<li>Django的URL调度器根据请求的URL匹配相应的视图函数或类。</li>
+<li>视图函数或类接收请求，根据业务逻辑从模型中获取数据。</li>
+<li>视图将获取到的数据传递给模板进行渲染。</li>
+<li>模板将数据和HTML结构结合，生成最终的HTML页面。</li>
+<li>视图将渲染后的HTML页面作为响应返回给用户的浏览器。</li>
+</ol>
+<h2 id="三-mvt模式在实际开发中的应用">三、MVT模式在实际开发中的应用</h2>
+<h3 id="1-创建模型">1. 创建模型</h3>
+<p>假设我们要开发一个简单的博客应用，首先需要创建一个模型来表示博客文章。在Django的应用目录下的 <code>models.py</code> 文件中编写以下代码：</p>
+<pre><code class="language-python">from django.db import models
+
+class BlogPost(models.Model):
+    title = models.CharField(max_length=200)
+    content = models.TextField()
+    pub_date = models.DateTimeField('date published')
+</code></pre>
+<p>上述代码定义了一个 <code>BlogPost</code> 模型，包含标题、内容和发布日期三个字段。</p>
+<h3 id="2-创建视图">2. 创建视图</h3>
+<p>在应用目录下的 <code>views.py</code> 文件中创建一个视图函数来处理博客文章的列表请求：</p>
+<pre><code class="language-python">from django.http import HttpResponse
+from .models import BlogPost
+
+def blog_list(request):
+    posts = BlogPost.objects.all()
+    output = ', '.join([p.title for p in posts])
+    return HttpResponse(output)
+</code></pre>
+<p>这个视图函数从模型中获取所有的博客文章，并将它们的标题连接成一个字符串返回给用户。</p>
+<h3 id="3-配置url">3. 配置URL</h3>
+<p>在应用目录下的 <code>urls.py</code> 文件中配置URL，将请求映射到相应的视图函数：</p>
+<pre><code class="language-python">from django.urls import path
+from .views import blog_list
+
+urlpatterns = [
+    path('blog/', blog_list, name='blog_list'),
+]
+</code></pre>
+<p>这样，当用户访问 <code>/blog/</code> 时，就会调用 <code>blog_list</code> 视图函数。</p>
+<h3 id="4-创建模板">4. 创建模板</h3>
+<p>在应用目录下创建一个 <code>templates</code> 文件夹，并在其中创建一个HTML模板文件，例如 <code>blog_list.html</code>：</p>
+<pre><code class="language-html">&lt;html&gt;
+&lt;body&gt;
+    &lt;h1&gt;Blog Posts&lt;/h1&gt;
+    &lt;ul&gt;
+        {% for post in posts %}
+        &lt;li&gt;{{ post.title }}&lt;/li&gt;
+        {% endfor %}
+    &lt;/ul&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+<p>然后修改视图函数，将数据传递给模板进行渲染：</p>
+<pre><code class="language-python">from django.shortcuts import render
+from .models import BlogPost
+
+def blog_list(request):
+    posts = BlogPost.objects.all()
+    return render(request, 'blog_list.html', {'posts': posts})
+</code></pre>
+<h2 id="四-总结">四、总结</h2>
+<p>Django的MVT模式是一种强大的软件设计模式，它通过将数据处理、业务逻辑和用户界面分离，使得Web应用的开发更加高效和易于维护。在实际开发中，我们可以根据具体的需求灵活运用MVT模式的各个组件，构建出功能丰富、结构清晰的Web应用。</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[学习日志1 安装VScode 虚拟环境 配置Django环境]]></title>
+        <id>https://OKooepoper.github.io/post/an-zhuang-vscode-xu-ni-huan-jing-pei-zhi-django-huan-jing/</id>
+        <link href="https://OKooepoper.github.io/post/an-zhuang-vscode-xu-ni-huan-jing-pei-zhi-django-huan-jing/">
+        </link>
+        <updated>2025-08-07T07:40:29.000Z</updated>
+        <summary type="html"><![CDATA[<p>在当今的 Python 开发领域，Django 作为一个强大的 Web 框架备受青睐。而借助 VSCode 这一优秀的代码编辑器，搭配虚拟环境，能让我们的开发工作更加高效和稳定。下面就为大家详细介绍如何安装 VSCode、创建虚拟环境并配置 Django 开发环境。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>在当今的 Python 开发领域，Django 作为一个强大的 Web 框架备受青睐。而借助 VSCode 这一优秀的代码编辑器，搭配虚拟环境，能让我们的开发工作更加高效和稳定。下面就为大家详细介绍如何安装 VSCode、创建虚拟环境并配置 Django 开发环境。</p>
+<!-- more -->
+<h2 id="一-安装-vscode">一、安装 VSCode</h2>
+<p>VSCode 是一款功能强大且广受欢迎的代码编辑器，安装过程十分简单。你可以从 <a href="https://code.visualstudio.com/">VSCode 官方网站</a> 下载适合你操作系统的安装包，然后按照提示完成安装。</p>
+<p>小技巧：安装完成后，打开 VSCode，当你打开一个 Python 文件（.py 后缀）时，在文件界面中右键点击“Run Current File in Interactive Window”，就能开启类似 JupyterLab 一样便捷的单元格运行模式，让代码调试和运行变得更加轻松。</p>
+<h2 id="二-安装全局-python">二、安装全局 Python</h2>
+<p>Python 是我们进行 Django 开发的基础，因此需要先安装一个全局的 Python 环境。你可以从 <a href="https://www.python.org/downloads/">Python 官方网站</a> 下载适合你操作系统的 Python 版本进行安装。在安装过程中，记得勾选“Add Python to PATH”选项，这样可以将 Python 添加到系统环境变量中，方便后续使用。</p>
+<h2 id="三-创建虚拟环境">三、创建虚拟环境</h2>
+<h3 id="31-新建项目文件夹">3.1 新建项目文件夹</h3>
+<p>为了更好地管理项目，我们首先在任意路径下创建一个专门的文件夹用于存放 Django 项目，例如创建一个名为 <code>Django_demo</code> 的文件夹。你可以通过文件资源管理器手动创建，也可以使用命令行工具来完成：</p>
+<pre><code class="language-bash">mkdir Django_demo
+cd Django_demo
+</code></pre>
+<h3 id="32-创建虚拟环境">3.2 创建虚拟环境</h3>
+<p>在项目文件夹下打开终端（在 Windows 系统中可以使用命令提示符或 PowerShell，在 macOS 和 Linux 系统中可以使用终端应用程序），运行以下命令来创建一个名为 <code>venv</code> 的虚拟环境：</p>
+<pre><code class="language-bash">python -m venv venv
+</code></pre>
+<p>此命令会在当前文件夹下创建一个名为 <code>venv</code> 的文件夹，其中包含了一个独立的 Python 环境。</p>
+<h3 id="33-激活虚拟环境">3.3 激活虚拟环境</h3>
+<ul>
+<li><strong>Windows 系统</strong>：在终端中运行以下命令来激活虚拟环境：</li>
+</ul>
+<pre><code class="language-bash">.\venv\Scripts\activate
+</code></pre>
+<ul>
+<li><strong>macOS 和 Linux 系统</strong>：在终端中运行以下命令来激活虚拟环境：</li>
+</ul>
+<pre><code class="language-bash">source venv/bin/activate
+</code></pre>
+<p>激活成功后，你会在终端的命令提示符前看到 <code>(venv)</code> 字样，表示当前已经处于虚拟环境中。</p>
+<h3 id="34-安装-django-模块">3.4 安装 Django 模块</h3>
+<p>在激活的虚拟环境中，我们可以使用 <code>pip</code> 包管理工具来安装 Django 模块。运行以下命令：</p>
+<pre><code class="language-bash">pip install django
+</code></pre>
+<p><code>pip</code> 会自动从 Python 包索引（PyPI）下载并安装最新版本的 Django。安装完成后，你就可以在虚拟环境中使用 Django 进行项目开发了。</p>
+<h2 id="四-创建-django-项目">四、创建 Django 项目</h2>
+<h3 id="41-初始化-django-项目">4.1 初始化 Django 项目</h3>
+<p>在激活的虚拟环境中，运行以下命令来创建一个新的 Django 项目：</p>
+<pre><code class="language-bash">django-admin startproject your_project_name
+</code></pre>
+<p>请将 <code>your_project_name</code> 替换为你实际想要使用的项目名称。执行此命令后，Django 会自动生成一个项目结构，其中包含了项目的配置文件和一些初始文件。</p>
+<h3 id="42-项目入口文件">4.2 项目入口文件</h3>
+<p>生成的 <code>manage.py</code> 文件是整个 Django 项目的入口文件，它提供了一系列管理项目的命令。你可以通过它来执行各种操作，如启动服务器、创建应用等。</p>
+<h3 id="43-查看项目命令帮助">4.3 查看项目命令帮助</h3>
+<p>切换到项目目录下（使用 <code>cd your_project_name</code> 命令），运行以下命令可以查看 Django 项目的相关命令帮助信息：</p>
+<pre><code class="language-bash">python manage.py --help
+</code></pre>
+<p>这个命令会列出所有可用的管理命令及其说明，帮助你更好地了解如何使用 Django 进行开发。</p>
+<h3 id="44-启动内置-web-服务器">4.4 启动内置 Web 服务器</h3>
+<p>在项目目录下，运行以下命令来启动 Django 内置的 Web 服务器：</p>
+<pre><code class="language-bash">python manage.py runserver
+</code></pre>
+<p>服务器启动后，会在终端中显示一个访问地址，通常是 <code>http://127.0.0.1:8000/</code>。打开浏览器，访问这个地址，你应该能看到 Django 的欢迎页面，这表示你的 Django 项目已经成功搭建并运行起来了。</p>
+<p>通过以上步骤，你就完成了 VSCode、虚拟环境的安装以及 Django 环境的配置，可以开始愉快地进行 Django 项目开发啦！</p>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[在博客中插入b站视频]]></title>
+        <id>https://OKooepoper.github.io/post/zai-bo-ke-zhong-cha-ru-b-zhan-shi-pin/</id>
+        <link href="https://OKooepoper.github.io/post/zai-bo-ke-zhong-cha-ru-b-zhan-shi-pin/">
+        </link>
+        <updated>2025-08-02T16:10:10.000Z</updated>
+        <summary type="html"><![CDATA[<p>在博客中插入b站视频，这是官方准备的嵌入代码，可以直接拿来用，但是显示效果不是很理想，样式不是我们希望的，需要调整一下。</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>在博客中插入b站视频，这是官方准备的嵌入代码，可以直接拿来用，但是显示效果不是很理想，样式不是我们希望的，需要调整一下。</p>
+<!-- more -->
+<pre><code class="language-html">&lt;iframe src=&quot;//player.bilibili.com/player.html?aid=84267566&amp;cid=145147963&amp;page=1&quot; scrolling=&quot;no&quot; border=&quot;0&quot; frameborder=&quot;no&quot; framespacing=&quot;0&quot; allowfullscreen=&quot;true&quot;&gt; &lt;/iframe&gt;
+</code></pre>
+<p>从嵌入代码中我们直接得到了aid和cid</p>
+<p>我们重新设置一下功能、大小、样式，得到可用的HTML代码</p>
+<pre><code class="language-html">&lt;iframe src=&quot;//player.bilibili.com/player.html?aid=84267566&amp;amp;cid=145147963&amp;amp;page=1&quot; frameborder=&quot;no&quot; scrolling=&quot;no&quot; width=&quot;95%&quot; height=&quot;600&quot;&gt;&lt;/iframe&gt;&lt;/p&gt;
+</code></pre>
+<p>以后插入需要的bilibili视频只需要改变上面的aid和cid就可以了！</p>
+<h2 id="大佬写了个模板">大佬写了个模板</h2>
+<p>大佬已经给出了解决方案</p>
+<pre><code class="language-html">&lt;div style=&quot;position: relative; padding: 30% 45%;&quot;&gt;
+&lt;iframe style=&quot;position: absolute; width: 100%; height: 100%; left: 0; top: 0;&quot; src=&quot;https://player.bilibili.com/player.html?cid=145147963&amp;aid=84267566&amp;page=1&amp;as_wide=1&amp;high_quality=1&amp;danmaku=0&quot; frameborder=&quot;no&quot; scrolling=&quot;no&quot;&gt;&lt;/iframe&gt;
+&lt;/div&gt;
+</code></pre>
+<p>可以用这个代码作为样板，以后只需要改变src的id好就可以了！</p>
+<p>放一个我最喜欢的b站视频：</p>
+<div style="position: relative; padding: 30% 45%;">
+<iframe style="position: absolute; width: 100%; height: 100%; left: 0; top: 0;" src="https://player.bilibili.com/player.html?cid=28195818688&aid=113217250530295&page=1&as_wide=1&high_quality=1&danmaku=0" frameborder="no" scrolling="no"></iframe>
+</div>
+]]></content>
+    </entry>
+    <entry>
+        <title type="html"><![CDATA[博客公元0年：在数字世界种下属于自己的树]]></title>
+        <id>https://OKooepoper.github.io/post/bo-ke-gong-yuan-0-nian-zai-shu-zi-shi-jie-chong-xia-shu-yu-zi-ji-de-shu/</id>
+        <link href="https://OKooepoper.github.io/post/bo-ke-gong-yuan-0-nian-zai-shu-zi-shi-jie-chong-xia-shu-yu-zi-ji-de-shu/">
+        </link>
+        <updated>2025-08-01T22:28:53.000Z</updated>
+        <summary type="html"><![CDATA[<p>本文是博主新博客的开篇，想分享灵感与技术心得而建博。内容含札记、生活碎片、技术分享等，盼访客留言互动，后续将更新相关内容……</p>
+]]></summary>
+        <content type="html"><![CDATA[<p>本文是博主新博客的开篇，想分享灵感与技术心得而建博。内容含札记、生活碎片、技术分享等，盼访客留言互动，后续将更新相关内容……</p>
+<!-- more -->
+<h2 id="序章">序章</h2>
+<p>当我点击完最后一个确认键，看着浏览器里跳出干干净净的新页面，一下子就想起小时候的事儿。那会儿在老家院子，我亲手种了棵梧桐树。记得我蹲在挖好的土坑边，眼巴巴看着爸爸填土，还一个劲儿问他：“这树啥时候才能长大啊？” 爸爸摸摸我的头说：“根扎得牢，才能慢慢发芽。” 现在看着眼前空空的博客编辑框，突然觉得这感觉太像了！这个刚建好的小博客，就跟当年那棵小树苗似的，得靠我慢慢打理，也盼着以后能和大家一起看着它热闹起来。其实我早就想在网上有个自己的小角落，能随便分享点东西，今天可算梦想成真了。</p>
+<h2 id="为什么要做这个博客">为什么要做这个博客？</h2>
+<p>这个念头在心里盘桓了近两年。在成都的几年里，我的生活总被碎片化的灵感所包围，可就是那么一闪而逝：地铁广告牌上撞色的巧妙配比、深夜改论文时突然明晰的交互逻辑、甚至街角咖啡馆灯光投射的阴影层次…… 这些散落在生活里的思考碎片，像口袋里叮当作响的硬币，单独听来有趣，却难凑成完整的图案。​<br>
+直到一次学术交流会，有一位专家展示了自己的个人主页，看到数百篇个人感悟的文章，使我也有了强烈拥有个人博客的念头：记录从不是炫耀，而是给未来的自己留一把钥匙。当记忆模糊时，这些文字会精准打开某个夏日午后的思考现场，也能让同频的人看到设计背后的真实轨迹。</p>
+<h2 id="结语">结语</h2>
+<p>发布这篇文字的此刻，应该是个寻常清晨：阳光漫过书桌，键盘上还留着咖啡渍的浅痕，窗外的鸟鸣刚好落在第三段结尾。就以这样笨拙又认真的方式，让这株数字幼苗扎下第一根须。毕竟独自前行太孤单，能和同路人并肩才更有趣……</p>
+<figure data-type="image" tabindex="1"><img src="https://OKooepoper.github.io/post-images/1754124579847.jpg" alt="" loading="lazy"></figure>
+]]></content>
+    </entry>
+</feed>
